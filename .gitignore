@@ -1,0 +1,23 @@
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables
+.env
+*.env
+
+# Airflow
+airflow/logs/
+airflow/plugins/__pycache__/
+__pycache__/
+
+# Infra env files (important!)
+infra/env/*.env
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+
+# OS files
+.DS_Store
