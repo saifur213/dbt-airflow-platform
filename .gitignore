@@ -11,6 +11,9 @@ airflow/logs/
 airflow/plugins/__pycache__/
 __pycache__/
 
+# dbt
+# dbt/profiles.yml
+
 # Infra env files (important!)
 infra/env/*.env
 
