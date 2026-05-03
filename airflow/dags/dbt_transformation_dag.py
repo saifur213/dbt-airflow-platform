@@ -5,7 +5,7 @@ from config.default_args import DEFAULT_ARGS
 from pathlib import Path
 
 profile_config = ProfileConfig(
-    profile_name="my_dbt_project",
+    profile_name="analytics",
     target_name="prod",
     profile_mapping=SnowflakeUserPasswordProfileMapping(
         conn_id="snowflake_default",
