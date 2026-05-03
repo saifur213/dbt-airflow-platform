@@ -19,20 +19,9 @@ This platform enables end-to-end data pipeline automation:
 
 ## 🏗️ Architecture Design
 
-The system follows a layered modern data architecture:
-
-1. **Data Ingestion Layer (Airflow DAGs)**
-   - Extract data from sources (DBs, APIs, files)
-   - Schedule and monitor workflows
-
-2. **Transformation Layer (dbt)**
-   - Staging models (raw → cleaned)
-   - Intermediate models (business logic)
-   - Mart models (analytics-ready data)
-
-3. **Serving Layer**
-   - Data warehouse / lakehouse
-   - BI tools (Power BI, dashboards, analytics apps)
+<p align="center">
+  <img src="docs/airflow_dbt_platform_architecture.svg" width="700"/>
+</p>
 
 ---
 
