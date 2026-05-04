@@ -1,0 +1,31 @@
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables
+.env
+*.env
+
+# Airflow
+airflow/logs/
+airflow/plugins/__pycache__/
+__pycache__/
+
+# dbt
+# dbt/profiles.yml
+logs
+dbt/analytics/target
+dbt/analytics/logs
+dbt/analytics/.user.yml
+dbt/analytics/dbt_packages
+
+# Infra env files (important!)
+infra/env/*.env
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+
+# OS files
+.DS_Store
