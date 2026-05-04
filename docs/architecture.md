@@ -289,7 +289,7 @@ The full stack runs on-premises via Docker Compose, managed through `infra/docke
 
 ## Security & Access Control
 
-- **Snowflake RBAC** — Separate roles for `LOADER` (write to RAW), `TRANSFORMER` (read RAW, write STAGING/INTERMEDIATE/MARTS), `REPORTER` (read-only on MARTS)
+- **Snowflake RBAC** — Separate roles for `LOADER` (write to RAW), `ACCOUNTADMIN` (read RAW, write STAGING/INTERMEDIATE/MARTS), `REPORTER` (read-only on MARTS)
 - **Secrets management** — All credentials stored in environment files (`infra/env/prod.env`) and injected at runtime. Never hardcoded in DAGs or dbt profiles
 - **PostgreSQL replication user** — Dedicated read-only user with `REPLICATION` privilege for Debezium; no write access to any table
 - **Kafka ACLs** — Per-topic ACLs restrict which connectors can produce/consume

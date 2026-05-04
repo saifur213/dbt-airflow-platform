@@ -13,7 +13,7 @@ profile_config = ProfileConfig(
             "database": "PROD",
             "schema": "PUBLIC",
             "warehouse": "COMPUTE_WH",
-            "role": "TRANSFORMER",
+            "role": "ACCOUNTADMIN",
         },
     ),
 )
