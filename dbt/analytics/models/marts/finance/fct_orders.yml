@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "One row per order with customer context"
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "order_total_usd >= 0"
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: customer_id
+        tests: [not_null]
+      - name: order_total_usd
+        tests: [not_null]
+      - name: created_at
+        tests: [not_null]
