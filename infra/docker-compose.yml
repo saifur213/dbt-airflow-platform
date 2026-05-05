@@ -1,12 +1,10 @@
-version: '3.9'
-
 x-airflow-common: &airflow-common
   image: airflow-dbt:latest
   build:
     context: ../airflow
     dockerfile: Dockerfile
   env_file:
-    - env/dev.env
+    - .env
   volumes:
     - ../airflow/dags:/opt/airflow/dags
     - ../airflow/logs:/opt/airflow/logs
@@ -21,24 +19,39 @@ x-airflow-common: &airflow-common
 services:
   airflow-postgres:
     image: postgres:15-alpine
+    ports:
+     - "5433:5432"
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${AIRFLOW_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${AIRFLOW_POSTGRES_DB}
     volumes:
       - airflow-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "airflow"]
+      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_POSTGRES_USER} -d ${AIRFLOW_POSTGRES_DB}"]
       interval: 10s
       retries: 5
     restart: always
 
   redis:
     image: redis:7-alpine
+    container_name: redis
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       retries: 5
+    restart: always
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
     restart: always
 
   airflow-webserver:
@@ -50,32 +63,41 @@ services:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
       retries: 5
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
     restart: always
 
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
     restart: always
 
   airflow-worker:
     <<: *airflow-common
     command: celery worker
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
     restart: always
 
   airflow-init:
     <<: *airflow-common
     entrypoint: /bin/bash
     command:
-      - -c
-      - |
-        airflow db upgrade &&
-        airflow users create \
-          --username admin \
-          --firstname Admin \
-          --lastname User \
-          --role Admin \
-          --email admin@example.com \
-          --password admin
+    - -c
+    - |
+      airflow db upgrade && \
+      airflow users create \
+        --username ${AIRFLOW_ADMIN_USERNAME} \
+        --firstname ${AIRFLOW_ADMIN_FIRSTNAME} \
+        --lastname ${AIRFLOW_ADMIN_LASTNAME} \
+        --role Admin \
+        --email ${AIRFLOW_ADMIN_EMAIL} \
+        --password ${AIRFLOW_ADMIN_PASSWORD} || true
     restart: on-failure
 
   flower:
@@ -83,6 +105,9 @@ services:
     command: celery flower
     ports:
       - "5555:5555"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
     restart: always
 
   nginx:
