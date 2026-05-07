@@ -12,6 +12,8 @@ USER airflow
 COPY requirements.txt /requirements.txt
 RUN pip install --no-cache-dir -r /requirements.txt
 
+RUN pip install snowflake-sqlalchemy sqlalchemy
+
 # Install dbt inside the same image for operator compatibility
 RUN pip install --no-cache-dir \
     dbt-core==1.8.0 \
