@@ -1,4 +1,4 @@
-airflow connections add postgres_source \
+docker compose exec airflow-webserver airflow connections add postgres_source \
     --conn-type postgres \
     --conn-host host.docker.internal \
     --conn-schema source_db \
