@@ -172,3 +172,15 @@ Observability with Prometheus & Grafana
 👨‍💻 Author
 
 Built as a production-ready on-prem data engineering platform integrating Airflow + dbt for scalable ETL/ELT workflows and enterprise analytics solutions.
+```
+
+---
+
+## 🚀 Usefull commands
+
+### 1. Test airflow connecitons
+```bash
+docker compose exec airflow-webserver airflow connections test snowflake_default
+
+docker compose exec airflow-webserver airflow connections test postgres_source
+```
