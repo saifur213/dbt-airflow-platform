@@ -113,6 +113,7 @@ Airflow Webserver
 Airflow Scheduler
 Metadata Database
 Optional dbt container
+
 3. Initialize Airflow
 bash scripts/init_airflow.sh
 4. Run dbt Transformations
@@ -120,9 +121,10 @@ bash scripts/run_dbt.sh
 
 Or manually:
 
-cd dbt/my_dbt_project
+cd dbt/analytics
 dbt run
 dbt test
+
 🔄 Workflow Execution
 Airflow DAG triggers pipeline execution
 Data is extracted from source systems
@@ -140,21 +142,25 @@ Docker Image Build
 Deployment to On-Prem Server
 Health Checks & Validation
 Rollback (if failure occurs)
+
 🧪 Testing Strategy
 Airflow Tests → DAG validation and task execution checks
 dbt Tests → Schema, uniqueness, and data integrity tests
 Integration Tests → End-to-end pipeline validation
+
 🔐 Security & Best Practices
 Environment variables stored securely in /infra/env
 No secrets committed to Git repository
 Airflow RBAC enabled for role-based access
 Isolated Docker network for service communication
 Reverse proxy via Nginx for secure exposure
+
 📦 Deployment Options
 Single-node Docker deployment
 Multi-container orchestration setup
 On-premise server deployment
 Persistent storage volumes for data & logs
+
 📚 Documentation
 
 Detailed documentation is available in the /docs directory:
@@ -178,9 +184,16 @@ Built as a production-ready on-prem data engineering platform integrating Airflo
 
 ## 🚀 Usefull commands
 
-### 1. Test airflow connecitons
+### 1. Create airflow connecitons: Run the shell scripts
 ```bash
-docker compose exec airflow-webserver airflow connections test snowflake_default
+bash airflow/connections/postgres_connection.sh
 
-docker compose exec airflow-webserver airflow connections test postgres_source
+bash airflow/connections/snowflake_connection.sh
+```
+
+### 2. Test airflow connecitons
+```bash
+docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connections test snowflake_default
+
+docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connections test postgres_source
 ```
