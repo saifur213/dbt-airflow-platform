@@ -18,3 +18,5 @@ sources:
             tests: [not_null]
           - name: order_total
             tests: [not_null]
+      - name: customers
+        description: "Customer Information from source system"

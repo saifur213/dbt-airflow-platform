@@ -34,5 +34,5 @@ analytics:
       password: etluser26
       port: 5432
       dbname: target_db
-      schema: public
+      schema: raw
       threads: 4
