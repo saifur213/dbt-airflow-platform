@@ -64,10 +64,6 @@ def extract_and_load(table: str, incremental_col: str, **context) -> None:
 
     engine = get_target_postgres_engine()
 
-    # Ensure schema exists
-    with engine.begin() as conn:
-        conn.exec_driver_sql("CREATE SCHEMA IF NOT EXISTS raw")
-
     # Load data
     df.to_sql(
         name=table,
