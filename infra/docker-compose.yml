@@ -124,5 +124,23 @@ services:
       - airflow-webserver
     restart: always
 
+  dbt-docs:
+    <<: *airflow-common
+    command: >
+      bash -c "
+        cd /opt/dbt/analytics &&
+        dbt deps &&
+        dbt docs generate --target postgres_dev &&
+        dbt docs serve --host 0.0.0.0 --port 8082
+      "
+    ports:
+      - "8082:8082"
+    volumes:
+      - ../dbt:/opt/dbt
+      - ~/.dbt:/root/.dbt
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+
 volumes:
   airflow-postgres-data:

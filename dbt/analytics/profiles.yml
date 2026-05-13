@@ -1,5 +1,5 @@
 analytics:
-  target: dev
+  target: postgres_dev
   outputs:
     dev:
       type: snowflake
@@ -26,3 +26,13 @@ analytics:
       threads: 8
       client_session_keep_alive: False
       query_tag: dbt_prod
+
+    postgres_dev:
+      type: postgres
+      host: localhost
+      user: etl_user
+      password: etluser26
+      port: 5432
+      dbname: target_db
+      schema: public
+      threads: 4
