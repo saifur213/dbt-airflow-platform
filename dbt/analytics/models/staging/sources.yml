@@ -2,8 +2,7 @@ version: 2
 
 sources:
   - name: raw
-    database: RAW
-    schema: PUBLIC
+    schema: "{{ target.schema }}"
     description: "Raw data loaded from Postgres by Airflow"
     freshness:
       warn_after: {count: 12, period: hour}

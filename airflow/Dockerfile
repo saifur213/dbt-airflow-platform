@@ -4,6 +4,8 @@ USER root
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
+    libpq-dev \
+    gcc \
     && apt-get clean
 
 USER airflow
@@ -17,5 +19,6 @@ RUN pip install snowflake-sqlalchemy sqlalchemy
 # Install dbt inside the same image for operator compatibility
 RUN pip install --no-cache-dir \
     dbt-core==1.8.0 \
+    dbt-postgres==1.8.0 \
     dbt-snowflake==1.8.0 \
     astronomer-cosmos==1.5.0
