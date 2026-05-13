@@ -14,18 +14,17 @@ renamed as (
         -- ids
         order_id::varchar          as order_id,
         customer_id::varchar       as customer_id,
-        product_id::varchar        as product_id,
 
-        -- amounts
-        order_total::number(18,2)  as order_total_usd,
-        tax_amount::number(18,2)   as tax_amount_usd,
+        -- amounts (FIXED)
+        order_total::numeric(18,2)  as order_total_usd,
+        tax_amount::numeric(18,2)   as tax_amount_usd,
 
         -- timestamps
-        created_at::timestamp_ntz  as created_at,
-        updated_at::timestamp_ntz  as updated_at,
+        created_at::timestamp       as created_at,
+        updated_at::timestamp       as updated_at,
 
         -- metadata
-        _extracted_at::timestamp_ntz as _extracted_at,
+        _extracted_at::timestamp    as _extracted_at,
 
         -- dedup: keep latest record per order
         row_number() over (
@@ -37,4 +36,6 @@ renamed as (
     where order_id is not null
 )
 
-select * from renamed where _row_num = 1
+select *
+from renamed
+where _row_num = 1

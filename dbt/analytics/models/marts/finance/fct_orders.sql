@@ -18,8 +18,6 @@ final as (
     select
         o.order_id,
         o.customer_id,
-        c.customer_name,
-        c.customer_segment,
         o.order_total_usd,
         o.tax_amount_usd,
         o.order_total_usd - o.tax_amount_usd as net_revenue_usd,
