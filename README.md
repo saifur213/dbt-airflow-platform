@@ -197,3 +197,10 @@ docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connec
 
 docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connections test postgres_source
 ```
+
+### 3. Run dbt commands
+```bash
+dbt debug --project-dir dbt/analytics --target postgres_dev
+dbt deps --project-dir dbt/analytics --target postgres_dev
+dbt docs generate --project-dir dbt/analytics --target postgres_dev
+```

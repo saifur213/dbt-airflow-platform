@@ -18,6 +18,7 @@ dbt/analytics/target
 dbt/analytics/logs
 dbt/analytics/.user.yml
 dbt/analytics/dbt_packages
+dbt/analytics/package-lock.yml
 
 # Infra env files (important!)
 infra/env/*.env
