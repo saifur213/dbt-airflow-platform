@@ -203,4 +203,6 @@ docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connec
 dbt debug --project-dir dbt/analytics --target postgres_dev
 dbt deps --project-dir dbt/analytics --target postgres_dev
 dbt docs generate --project-dir dbt/analytics --target postgres_dev
+dbt docs serve --project-dir dbt/analytics --target postgres_dev --port 8082
+dbt run --select <model_name> --project-dir dbt/analytics --target postgres_dev
 ```
