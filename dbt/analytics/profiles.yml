@@ -29,10 +29,11 @@ analytics:
 
     postgres_dev:
       type: postgres
-      host: localhost
-      user: etl_user
-      password: etluser26
-      port: 5432
-      dbname: target_db
-      schema: raw
+      # host: "host.docker.internal"
+      host: "localhost"
+      user: "{{ env_var('TARGET_POSTGRES_USER') }}"
+      password: "{{ env_var('TARGET_POSTGRES_PASSWORD') }}"
+      port: "{{ env_var('TARGET_POSTGRES_PORT') | int }}"
+      dbname: "{{ env_var('TARGET_POSTGRES_DB') }}"
+      schema: "{{ env_var('TARGET_POSTGRES_SCHEMA') }}"
       threads: 4
