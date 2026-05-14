@@ -21,6 +21,7 @@ x-airflow-common: &airflow-common
 services:
   airflow-postgres:
     image: postgres:15-alpine
+    mem_limit: 1g
     ports:
      - "5433:5432"
     environment:
@@ -38,6 +39,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redis
+    mem_limit: 512m
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -59,6 +61,7 @@ services:
   airflow-webserver:
     <<: *airflow-common
     command: webserver
+    mem_limit: 1g
     ports:
       - "8080:8080"
     healthcheck:
@@ -73,6 +76,7 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    mem_limit: 1g
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -81,6 +85,7 @@ services:
   airflow-worker:
     <<: *airflow-common
     command: celery worker
+    mem_limit: 1.5g
     depends_on:
       airflow-init:
         condition: service_completed_successfully
@@ -129,18 +134,28 @@ services:
     command: >
       bash -c "
         cd /opt/dbt/analytics &&
-        dbt deps &&
-        dbt docs generate --target postgres_dev &&
-        dbt docs serve --host 0.0.0.0 --port 8082
+        python -m http.server 8082 --directory target
       "
     ports:
       - "8082:8082"
-    volumes:
-      - ../dbt:/opt/dbt
-      - ~/.dbt:/root/.dbt
-    depends_on:
-      airflow-postgres:
-        condition: service_healthy
+
+  # dbt-docs:
+  #   <<: *airflow-common
+  #   command: >
+  #     bash -c "
+  #       cd /opt/dbt/analytics &&
+  #       dbt deps &&
+  #       dbt docs generate --target postgres_dev &&
+  #       dbt docs serve --host 0.0.0.0 --port 8082
+  #     "
+  #   ports:
+  #     - "8082:8082"
+  #   volumes:
+  #     - ../dbt:/opt/dbt
+  #     - ~/.dbt:/root/.dbt
+  #   depends_on:
+  #     airflow-postgres:
+  #       condition: service_healthy
 
 volumes:
   airflow-postgres-data:

@@ -20,7 +20,10 @@ profile_config = ProfileConfig(
 
 dbt_dag = DbtDag(
     dag_id="dbt_transformation",
-    project_config=ProjectConfig(Path("/opt/dbt/analytics")),
+    project_config=ProjectConfig(
+        dbt_project_path="/opt/dbt/analytics",
+        manifest_path="/opt/dbt/analytics/target/manifest.json",
+    ),
     profile_config=profile_config,
     execution_config=ExecutionConfig(dbt_executable_path="/home/airflow/.local/bin/dbt"),
     default_args=DEFAULT_ARGS,
