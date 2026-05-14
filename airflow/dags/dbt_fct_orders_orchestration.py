@@ -26,7 +26,8 @@ dbt_dag = DbtDag(
     dag_id="dbt_fct_orders_pipeline",
 
     project_config=ProjectConfig(
-        Path("/opt/dbt/analytics")
+        dbt_project_path="/opt/dbt/analytics",
+        manifest_path="/opt/dbt/analytics/target/manifest.json",
     ),
 
     profile_config=profile_config,
