@@ -179,6 +179,15 @@ Observability with Prometheus & Grafana
 
 Built as a production-ready on-prem data engineering platform integrating Airflow + dbt for scalable ETL/ELT workflows and enterprise analytics solutions.
 ```
+### Nginx
+```bash
+mkdir -p infra/nginx/certs
+
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout infra/nginx/certs/privkey.pem \
+  -out infra/nginx/certs/fullchain.pem \
+  -subj "/CN=airflow.dev"
+```
 
 ---
 
