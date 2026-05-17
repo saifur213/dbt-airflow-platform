@@ -30,3 +30,6 @@ infra/env/*.env
 
 # OS files
 .DS_Store
+
+# Nginx
+infra/nginx/certs
