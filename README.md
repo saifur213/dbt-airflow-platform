@@ -1,4 +1,4 @@
-# Airflow + dbt On-Prem Data Engineering Platform
+# Airflow + dbt + kafka On-Prem Data Engineering Platform
 
 A production-grade **on-premise data engineering platform** built with **Apache Airflow** and **dbt (data build tool)** for orchestrating and transforming modern data pipelines. This architecture is designed for scalable ETL/ELT workflows, modular development, and enterprise deployment without any cloud dependency.
 
@@ -21,6 +21,16 @@ This platform enables end-to-end data pipeline automation:
 
 <p align="center">
   <img src="docs/airflow_dbt_platform_architecture.svg" width="700"/>
+</p>
+
+---
+
+---
+
+## 🏗️ Kafka Architecture Design
+
+<p align="center">
+  <img src="docs/kafka_streaming_architecture.svg" width="700"/>
 </p>
 
 ---
