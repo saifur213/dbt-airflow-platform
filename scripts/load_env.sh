@@ -1,5 +1,5 @@
 # scripts/load_env.sh
 
 set -a
-source infra/env/dev.env
+source infra/.env
 set +a
