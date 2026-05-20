@@ -20,6 +20,10 @@ dbt/analytics/.user.yml
 dbt/analytics/dbt_packages
 dbt/analytics/package-lock.yml
 
+# Kafka
+kafka/config/producer.yml
+kafka/config/consumer.yml
+
 # Infra env files (important!)
 infra/env/*.env
 

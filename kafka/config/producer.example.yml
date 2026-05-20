@@ -1,0 +1,26 @@
+source_postgres:
+  host: 
+  port:                         
+  database:          
+  user:                     
+  connect_timeout: 10
+
+streams:
+  - source_table: <schema>.<table_name> 
+    watermark_column: updated_at    
+    kafka_topic: 
+    batch_size: 500                 
+    poll_interval_sec: 10  
+
+kafka:
+  bootstrap_servers: kafka:9092     
+  producer:
+    acks: all
+    retries: 5
+    retry_backoff_ms: 1000
+  topic_defaults:
+    num_partitions: 3
+    replication_factor: 1
+
+watermark:
+  state_dir: /tmp/watermarks 

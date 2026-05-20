@@ -11,6 +11,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY consumer.py .
-# COPY config/ ./config/
+COPY config/consumer.yml ./config/consumer.yml
 
 CMD ["python", "-u", "consumer.py"]
