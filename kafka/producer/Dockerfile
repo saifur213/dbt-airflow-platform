@@ -12,6 +12,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
  
 COPY producer.py .
-# COPY config/ ./config/
+COPY config/producer.yml ./config/producer.yml
  
 CMD ["python", "-u", "producer.py"]
