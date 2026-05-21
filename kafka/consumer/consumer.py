@@ -19,6 +19,8 @@ log = logging.getLogger("kafka-consumer")
 
 CONFIG_PATH = Path("/app/config/consumer.yml")
 
+PRIMARY_KEY = "order_id"
+
 
 # ── Config loading ────────────────────────────────────────────────────────────
 
@@ -96,7 +98,7 @@ def ensure_table(conn, table: str, row: dict) -> None:
     col_defs = []
     for col, val in row.items():
         pg_type = infer_pg_type(val)
-        if col == "id":
+        if col == PRIMARY_KEY:
             col_defs.append(f'"{col}" {pg_type} PRIMARY KEY')
         else:
             col_defs.append(f'"{col}" {pg_type}')
@@ -115,11 +117,14 @@ def build_upsert(table: str, row: dict) -> tuple[str, list]:
     values       = list(row.values())
     placeholders = ", ".join(["%s"] * len(cols))
     col_list     = ", ".join([f'"{c}"' for c in cols])
-    updates      = ", ".join([f'"{c}" = EXCLUDED."{c}"' for c in cols if c != "id"])
+    updates = ", ".join([
+        f'"{c}" = EXCLUDED."{c}"'
+        for c in cols if c != PRIMARY_KEY
+    ])
     sql = f"""
         INSERT INTO {table} ({col_list})
         VALUES ({placeholders})
-        ON CONFLICT (id) DO UPDATE SET {updates}
+        ON CONFLICT ({PRIMARY_KEY}) DO UPDATE SET {updates}
     """
     return sql.strip(), values
 
