@@ -3,6 +3,7 @@ import logging
 import os
 import threading
 import time
+from decimal import Decimal
 from datetime import datetime
 from pathlib import Path
 
@@ -121,7 +122,13 @@ def serialize_row(row: dict) -> str:
     def default(o):
         if isinstance(o, datetime):
             return o.isoformat()
+
+        if isinstance(o, Decimal):
+            return float(o)
+            # alternatively: return str(o)
+
         raise TypeError(f"Unserializable type: {type(o)}")
+
     return json.dumps(row, default=default)
 
 
