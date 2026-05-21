@@ -5,3 +5,4 @@ apache-airflow-providers-http==4.9.0
 astronomer-cosmos==1.5.0
 great-expectations==0.18.0
 sentry-sdk==2.5.0
+Faker==25.9.1

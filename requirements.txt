@@ -45,6 +45,7 @@ colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.3
 ConfigUpdater==3.2
+confluent-kafka==2.14.0
 connexion==2.14.2
 cron-descriptor==1.4.3
 croniter==2.0.3
@@ -71,6 +72,7 @@ dotenv==0.9.9
 email_validator==2.1.1
 entrypoints==0.4
 executing==2.2.1
+Faker==40.18.0
 fastjsonschema==2.21.2
 filelock==3.29.0
 Flask==2.2.5
