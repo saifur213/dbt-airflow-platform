@@ -251,6 +251,40 @@ services:
     environment:
       TARGET_POSTGRES_PASSWORD: ${TARGET_POSTGRES_PASSWORD}
 
+  # ── Spark Service ────────────────────────────────────────────────────────── 
+  spark-master:
+    image: apache/spark:3.5.5
+    container_name: spark-master
+    mem_limit: 1g
+    user: root
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+    command: /opt/spark/sbin/start-master.sh
+    ports:
+      - "8085:8080"   # Spark UI (changed from 8080 — conflicts with airflow-webserver)
+      - "7077:7077"   # cluster port
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080 || exit 1"]
+      interval: 15s
+      retries: 5
+    restart: unless-stopped
+
+  spark-worker:
+    image: apache/spark:3.5.5
+    container_name: spark-worker
+    mem_limit: 2g
+    user: root
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_WORKER_CORES=2
+    command: /opt/spark/sbin/start-worker.sh spark://spark-master:7077
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    restart: unless-stopped
+
+
 volumes:
   airflow-postgres-data:
   zookeeper-data:
