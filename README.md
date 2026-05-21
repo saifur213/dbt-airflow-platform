@@ -48,7 +48,7 @@ airflow-dbt-platform/
 │ └── Dockerfile # Custom Airflow image
 │
 ├── dbt/ # dbt transformation layer
-│ └── my_dbt_project/
+│ └── analytics/
 │ ├── models/
 │ │ ├── staging/ # Raw data cleaning models
 │ │ ├── intermediate/ # Business logic models
@@ -59,6 +59,11 @@ airflow-dbt-platform/
 │ ├── dbt_project.yml # dbt configuration
 │ └── profiles.yml # database connections
 │
+├── kafka/ # streaming data
+│ └── config/
+│ ├── producer/
+│ ├── consumer/
+|
 ├── infra/ # Infrastructure setup (on-prem)
 │ ├── docker-compose.yml # Full stack orchestration
 │ ├── nginx/ # Reverse proxy configuration

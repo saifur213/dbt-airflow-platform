@@ -228,66 +228,28 @@ services:
     restart: unless-stopped
  
   # ── Kafka producer ──────────────────────────────────────────────────────────
-  # Reads from your source Postgres (on the host) and publishes to Kafka.
-  # The source Postgres is reached via host.docker.internal.
- 
   kafka-producer:
     <<: *kafka-sink-common
     build:
-      context: ../kafka/producer
-      dockerfile: Dockerfile
+      context: ../kafka
+      dockerfile: producer/Dockerfile
     container_name: kafka-producer
     mem_limit: 512m
     environment:
-      # Source Postgres – running on your local machine
-      SOURCE_PG_HOST: host.docker.internal
-      SOURCE_PG_PORT: ${SOURCE_POSTGRES_PORT:-5432}
-      SOURCE_PG_DB: ${SOURCE_POSTGRES_DB}
-      SOURCE_PG_USER: ${SOURCE_POSTGRES_USER}
-      SOURCE_PG_PASSWORD: ${SOURCE_POSTGRES_PASSWORD}
- 
-      # Which table to stream and which column tracks new/changed rows
-      SOURCE_TABLE: ${SOURCE_POSTGRES_TABLE:-public.orders}
-      WATERMARK_COLUMN: ${WATERMARK_COLUMN:-updated_at}
- 
-      # Kafka connection
-      KAFKA_BOOTSTRAP: kafka:9092
-      KAFKA_TOPIC: ${KAFKA_TOPIC:-pg.stream}
- 
-      # Tuning
-      POLL_INTERVAL_SEC: ${POLL_INTERVAL_SEC:-10}
-      BATCH_SIZE: ${BATCH_SIZE:-500}
+      SOURCE_POSTGRES_PASSWORD: ${SOURCE_POSTGRES_PASSWORD}
     volumes:
-      # Persist the watermark file across container restarts
-      - kafka-producer-state:/tmp
+      - kafka-producer-state:/tmp/watermarks
  
-  # ── Kafka consumer ──────────────────────────────────────────────────────────
-  # Reads from Kafka and upserts into your destination Postgres (on the host).
- 
+  # ── Kafka consumer ────────────────────────────────────────────────────────── 
   kafka-consumer:
     <<: *kafka-sink-common
     build:
-      context: ../kafka/consumer
-      dockerfile: Dockerfile
+      context: ../kafka
+      dockerfile: consumer/Dockerfile
     container_name: kafka-consumer
     mem_limit: 512m
     environment:
-      # Destination Postgres – running on your local machine
-      DEST_PG_HOST: host.docker.internal
-      DEST_PG_PORT: ${TARGET_POSTGRES_PORT}
-      DEST_PG_DB: ${TARGET_POSTGRES_DB}
-      DEST_PG_USER: ${TARGET_POSTGRES_USER}
-      DEST_PG_PASSWORD: ${TARGET_POSTGRES_PASSWORD}
-      DEST_TABLE: ${TARGET_STREAM_TABLE:-raw.orders_streaming}
- 
-      # Kafka connection
-      KAFKA_BOOTSTRAP: kafka:9092
-      KAFKA_TOPIC: ${KAFKA_TOPIC:-pg.stream}
-      KAFKA_CONSUMER_GROUP: ${KAFKA_CONSUMER_GROUP:-pg-sink-group}
- 
-      # Tuning
-      COMMIT_BATCH_SIZE: ${COMMIT_BATCH_SIZE:-100}
-      AUTO_CREATE_TABLE: ${AUTO_CREATE_TABLE:-true}
+      TARGET_POSTGRES_PASSWORD: ${TARGET_POSTGRES_PASSWORD}
 
 volumes:
   airflow-postgres-data:

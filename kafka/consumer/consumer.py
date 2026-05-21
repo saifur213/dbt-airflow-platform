@@ -1,36 +1,14 @@
-"""
-Kafka Consumer: reads messages from a Kafka topic and upserts rows into
-the destination Postgres database.
-
-Design decisions:
-  - Uses INSERT … ON CONFLICT (id) DO UPDATE so re-delivered messages are safe.
-  - Commits Kafka offsets only after a successful Postgres commit (at-least-once).
-  - Processes messages in micro-batches (COMMIT_BATCH_SIZE) for throughput.
-  - Destination table is auto-created from the first message's keys if
-    AUTO_CREATE_TABLE=true (useful for dev; disable in prod).
-
-Environment variables:
-  DEST_PG_HOST          - usually host.docker.internal
-  DEST_PG_PORT          - default 5432
-  DEST_PG_DB
-  DEST_PG_USER
-  DEST_PG_PASSWORD
-  DEST_TABLE            - target schema.table, e.g. public.orders_sink
-  KAFKA_BOOTSTRAP       - e.g. kafka:9092
-  KAFKA_TOPIC           - topic to consume
-  KAFKA_CONSUMER_GROUP  - consumer group id, e.g. pg-sink-group
-  COMMIT_BATCH_SIZE     - rows per Postgres commit, default 100
-  AUTO_CREATE_TABLE     - true/false, default true
-"""
-
 import json
 import logging
 import os
+import threading
 import time
+from pathlib import Path
 from typing import Any
 
 import psycopg2
 import psycopg2.extras
+import yaml
 from confluent_kafka import Consumer, KafkaError, KafkaException
 
 logging.basicConfig(
@@ -39,40 +17,73 @@ logging.basicConfig(
 )
 log = logging.getLogger("kafka-consumer")
 
-# ── Config ──────────────────────────────────────────────────────────────────
+CONFIG_PATH = Path("/app/config/consumer.yml")
 
-DEST_PG_HOST        = "host.docker.internal"
-DEST_PG_PORT        = int(os.getenv("DEST_PG_PORT", "5432"))
-DEST_PG_DB          = os.environ["DEST_PG_DB"]
-DEST_PG_USER        = os.environ["DEST_PG_USER"]
-DEST_PG_PASSWORD    = os.environ["DEST_PG_PASSWORD"]
-
-DEST_TABLE          = os.environ["DEST_TABLE"]
-
-KAFKA_BOOTSTRAP     = os.environ["KAFKA_BOOTSTRAP"]
-KAFKA_TOPIC         = os.environ["KAFKA_TOPIC"]
-KAFKA_GROUP         = os.getenv("KAFKA_CONSUMER_GROUP", "pg-sink-group")
-
-COMMIT_BATCH_SIZE   = int(os.getenv("COMMIT_BATCH_SIZE", "100"))
-AUTO_CREATE_TABLE   = os.getenv("AUTO_CREATE_TABLE", "true").lower() == "true"
-
-
-# ── Helpers ──────────────────────────────────────────────────────────────────
 PRIMARY_KEY = "order_id"
 
-def get_pg_connection():
+
+# ── Config loading ────────────────────────────────────────────────────────────
+
+def load_config() -> dict:
+    if not CONFIG_PATH.exists():
+        raise FileNotFoundError(f"Config file not found: {CONFIG_PATH}")
+
+    with CONFIG_PATH.open() as f:
+        cfg = yaml.safe_load(f)
+
+    # ── dest_postgres overrides ───────────────────────────────────────────────
+    pg = cfg.setdefault("dest_postgres", {})
+    if v := os.getenv("TARGET_POSTGRES_HOST"):
+        pg["host"] = v
+    if v := os.getenv("TARGET_POSTGRES_PORT"):
+        pg["port"] = int(v)
+    if v := os.getenv("TARGET_POSTGRES_DB"):
+        pg["database"] = v
+    if v := os.getenv("TARGET_POSTGRES_USER"):
+        pg["user"] = v
+
+    # Password must come from env — never stored in the config file
+    password = os.environ.get("TARGET_POSTGRES_PASSWORD")
+    if not password:
+        raise EnvironmentError("Required env var not set: TARGET_POSTGRES_PASSWORD")
+    pg["password"] = password
+
+    # ── single-stream env overrides (applies to first stream entry) ───────────
+    streams = cfg.setdefault("streams", [{}])
+    s = streams[0]
+    if v := os.getenv("KAFKA_TOPIC"):
+        s["kafka_topic"] = v
+    if v := os.getenv("KAFKA_CONSUMER_GROUP"):
+        s["consumer_group"] = v
+    if v := os.getenv("TARGET_STREAM_TABLE"):
+        s["dest_table"] = v
+    if v := os.getenv("COMMIT_BATCH_SIZE"):
+        s["commit_batch_size"] = int(v)
+    if v := os.getenv("AUTO_CREATE_TABLE"):
+        s["auto_create_table"] = v.lower() == "true"
+
+    # ── kafka overrides ───────────────────────────────────────────────────────
+    kafka = cfg.setdefault("kafka", {})
+    if v := os.getenv("KAFKA_BOOTSTRAP"):
+        kafka["bootstrap_servers"] = v
+
+    return cfg
+
+
+# ── Postgres helpers ──────────────────────────────────────────────────────────
+
+def get_pg_connection(pg_cfg: dict):
     return psycopg2.connect(
-        host=DEST_PG_HOST,
-        port=DEST_PG_PORT,
-        dbname=DEST_PG_DB,
-        user=DEST_PG_USER,
-        password=DEST_PG_PASSWORD,
-        connect_timeout=10,
+        host=pg_cfg["host"],
+        port=int(pg_cfg.get("port", 5432)),
+        dbname=pg_cfg["database"],
+        user=pg_cfg["user"],
+        password=pg_cfg["password"],
+        connect_timeout=pg_cfg.get("connect_timeout", 10),
     )
 
 
 def infer_pg_type(value: Any) -> str:
-    """Infer a reasonable Postgres column type from a Python value."""
     if isinstance(value, bool):
         return "BOOLEAN"
     if isinstance(value, int):
@@ -82,12 +93,8 @@ def infer_pg_type(value: Any) -> str:
     return "TEXT"
 
 
-def auto_create_table(conn, table: str, row: dict) -> None:
-    """Create the destination table if it doesn't exist, inferring types."""
-    schema, tbl = (table.split(".", 1) + [""])[:2] or ("public", table)
-    if not tbl:
-        schema, tbl = "public", schema
-
+def ensure_table(conn, table: str, row: dict) -> None:
+    """Create the destination table if it doesn't exist, inferring column types."""
     col_defs = []
     for col, val in row.items():
         pg_type = infer_pg_type(val)
@@ -96,24 +103,24 @@ def auto_create_table(conn, table: str, row: dict) -> None:
         else:
             col_defs.append(f'"{col}" {pg_type}')
 
-    ddl = f'CREATE TABLE IF NOT EXISTS {table} ({", ".join(col_defs)})'
+    # Ensure schema exists
+    schema = table.split(".")[0] if "." in table else "public"
     with conn.cursor() as cur:
-        cur.execute(ddl)
+        cur.execute(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+        cur.execute(f'CREATE TABLE IF NOT EXISTS {table} ({", ".join(col_defs)})')
     conn.commit()
     log.info("Ensured table: %s", table)
 
 
 def build_upsert(table: str, row: dict) -> tuple[str, list]:
-    """Build an INSERT … ON CONFLICT DO UPDATE statement."""
-    cols    = list(row.keys())
-    values  = list(row.values())
+    cols         = list(row.keys())
+    values       = list(row.values())
     placeholders = ", ".join(["%s"] * len(cols))
     col_list     = ", ".join([f'"{c}"' for c in cols])
     updates = ", ".join([
         f'"{c}" = EXCLUDED."{c}"'
         for c in cols if c != PRIMARY_KEY
     ])
-
     sql = f"""
         INSERT INTO {table} ({col_list})
         VALUES ({placeholders})
@@ -122,102 +129,142 @@ def build_upsert(table: str, row: dict) -> tuple[str, list]:
     return sql.strip(), values
 
 
-# ── Main loop ────────────────────────────────────────────────────────────────
+# ── Stream worker ─────────────────────────────────────────────────────────────
 
-def main():
-    log.info("Starting consumer | topic=%s group=%s table=%s", KAFKA_TOPIC, KAFKA_GROUP, DEST_TABLE)
+def run_stream(stream_cfg: dict, pg_cfg: dict, kafka_cfg: dict) -> None:
+    """
+    Consumes one Kafka topic and writes to one destination table.
+    Runs in its own thread so multiple streams work concurrently.
+    """
+    topic             = stream_cfg["kafka_topic"]
+    group             = stream_cfg.get("consumer_group", "pg-sink-group")
+    dest_table        = stream_cfg["dest_table"]
+    commit_batch_size = int(stream_cfg.get("commit_batch_size", 100))
+    auto_create       = str(stream_cfg.get("auto_create_table", True)).lower() == "true"
+    bootstrap         = kafka_cfg["bootstrap_servers"]
+    consumer_cfg      = kafka_cfg.get("consumer", {})
+
+    log.info("[%s] Starting consumer | group=%s dest=%s", topic, group, dest_table)
 
     consumer = Consumer({
-        "bootstrap.servers": KAFKA_BOOTSTRAP,
-        "group.id": KAFKA_GROUP,
-        "auto.offset.reset": "earliest",
-        "enable.auto.commit": False,   # manual commit after Postgres write
-        "session.timeout.ms": 30000,
-        "max.poll.interval.ms": 300000,
+        "bootstrap.servers": bootstrap,
+        "group.id": group,
+        "auto.offset.reset": consumer_cfg.get("auto_offset_reset", "earliest"),
+        "enable.auto.commit": False,
+        "session.timeout.ms": consumer_cfg.get("session_timeout_ms", 30000),
+        "max.poll.interval.ms": consumer_cfg.get("max_poll_interval_ms", 300000),
     })
 
-    # Wait for Kafka to be ready
+    # Wait for Kafka and subscribe
     for attempt in range(30):
         try:
-            consumer.subscribe([KAFKA_TOPIC])
-            log.info("Subscribed to topic: %s", KAFKA_TOPIC)
+            consumer.subscribe([topic])
+            log.info("[%s] Subscribed", topic)
             break
         except KafkaException as exc:
-            log.warning("Kafka not ready yet (attempt %d/30): %s", attempt + 1, exc)
+            log.warning("[%s] Kafka not ready (attempt %d/30): %s", topic, attempt + 1, exc)
             time.sleep(5)
     else:
-        raise RuntimeError("Kafka unavailable after 30 attempts")
+        raise RuntimeError(f"[{topic}] Kafka unavailable after 30 attempts")
 
     table_ensured = False
     batch: list[dict] = []
-    offsets_to_commit = []
+    pending_msgs: list = []
 
     try:
         while True:
             msg = consumer.poll(timeout=1.0)
 
             if msg is None:
-                # Flush any partial batch after idle
                 if batch:
-                    _flush_batch(batch, offsets_to_commit, consumer, table_ensured)
+                    _flush(batch, pending_msgs, consumer, pg_cfg, dest_table, topic)
                     batch.clear()
-                    offsets_to_commit.clear()
+                    pending_msgs.clear()
                 continue
 
             if msg.error():
-                if msg.error().code() == KafkaError._PARTITION_EOF:
-                    log.debug("Reached end of partition %s/%s", msg.topic(), msg.partition())
-                else:
-                    log.error("Kafka error: %s", msg.error())
+                if msg.error().code() != KafkaError._PARTITION_EOF:
+                    log.error("[%s] Kafka error: %s", topic, msg.error())
                 continue
 
             try:
                 row = json.loads(msg.value().decode("utf-8"))
             except json.JSONDecodeError as exc:
-                log.error("Failed to decode message: %s", exc)
+                log.error("[%s] Failed to decode message: %s", topic, exc)
                 continue
 
-            if not table_ensured and AUTO_CREATE_TABLE:
-                conn = get_pg_connection()
-                auto_create_table(conn, DEST_TABLE, row)
+            if not table_ensured and auto_create:
+                conn = get_pg_connection(pg_cfg)
+                ensure_table(conn, dest_table, row)
                 conn.close()
                 table_ensured = True
 
             batch.append(row)
-            offsets_to_commit.append(msg)
+            pending_msgs.append(msg)
 
-            if len(batch) >= COMMIT_BATCH_SIZE:
-                _flush_batch(batch, offsets_to_commit, consumer, table_ensured)
+            if len(batch) >= commit_batch_size:
+                _flush(batch, pending_msgs, consumer, pg_cfg, dest_table, topic)
                 batch.clear()
-                offsets_to_commit.clear()
+                pending_msgs.clear()
 
     except KeyboardInterrupt:
-        log.info("Shutting down consumer...")
+        log.info("[%s] Shutting down...", topic)
     finally:
         consumer.close()
 
 
-def _flush_batch(batch: list[dict], messages: list, consumer: Consumer, table_ensured: bool) -> None:
-    """Write a batch to Postgres and commit Kafka offsets."""
+def _flush(batch: list[dict], messages: list, consumer: Consumer,
+           pg_cfg: dict, dest_table: str, topic: str) -> None:
+    """Write batch to Postgres then commit Kafka offset."""
     try:
-        conn = get_pg_connection()
+        conn = get_pg_connection(pg_cfg)
         with conn.cursor() as cur:
             for row in batch:
-                sql, values = build_upsert(DEST_TABLE, row)
+                sql, values = build_upsert(dest_table, row)
                 cur.execute(sql, values)
         conn.commit()
         conn.close()
 
-        # Commit Kafka offset only after successful Postgres commit
         consumer.commit(message=messages[-1], asynchronous=False)
-        log.info("Flushed %d rows → %s", len(batch), DEST_TABLE)
+        log.info("[%s] Flushed %d rows → %s", topic, len(batch), dest_table)
 
     except psycopg2.OperationalError as exc:
-        log.error("Postgres write error: %s – batch will be retried", exc)
+        log.error("[%s] Postgres write error: %s – batch will be retried", topic, exc)
         raise
     except Exception as exc:
-        log.exception("Unexpected flush error: %s", exc)
+        log.exception("[%s] Unexpected flush error: %s", topic, exc)
         raise
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
+def main():
+    cfg       = load_config()
+    pg_cfg    = cfg["dest_postgres"]
+    kafka_cfg = cfg["kafka"]
+    streams   = cfg.get("streams", [])
+
+    if not streams:
+        raise ValueError("No streams defined in consumer.yml under 'streams:'")
+
+    log.info("Loaded %d stream(s) from config", len(streams))
+
+    if len(streams) == 1:
+        run_stream(streams[0], pg_cfg, kafka_cfg)
+    else:
+        threads = []
+        for stream_cfg in streams:
+            t = threading.Thread(
+                target=run_stream,
+                args=(stream_cfg, pg_cfg, kafka_cfg),
+                name=stream_cfg["kafka_topic"],
+                daemon=True,
+            )
+            t.start()
+            threads.append(t)
+
+        for t in threads:
+            t.join()
 
 
 if __name__ == "__main__":
