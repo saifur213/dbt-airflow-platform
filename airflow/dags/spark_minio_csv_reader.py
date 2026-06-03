@@ -45,28 +45,27 @@ with DAG(
         python_callable=list_csv_files,
     )
 
-    # # ── Task 2: Submit Spark job to read the CSV files ────────────────────────
-    # spark_read_task = SparkSubmitOperator(
-    #     task_id="spark_read_csv",
-    #     conn_id="spark_default",
-    #     application="/opt/airflow/dags/spark_jobs/minio_csv_reader.py",
-    #     name="minio_csv_reader",
-    #     verbose=True,
-    #     conf={
-    #         # MinIO S3A config
-    #         "spark.hadoop.fs.s3a.endpoint":          "http://minio:9000",
-    #         "spark.hadoop.fs.s3a.access.key":        "{{ var.value.get('minio_access_key', 'minioadmin') }}",
-    #         "spark.hadoop.fs.s3a.secret.key":        "{{ var.value.get('minio_secret_key', 'minioadmin123') }}",
-    #         "spark.hadoop.fs.s3a.path.style.access": "true",
-    #         "spark.hadoop.fs.s3a.impl":              "org.apache.hadoop.fs.s3a.S3AFileSystem",
-    #         "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
-    #         # JARs required for S3A
-    #         "spark.jars.packages": (
-    #             "org.apache.hadoop:hadoop-aws:3.3.4,"
-    #             "com.amazonaws:aws-java-sdk-bundle:1.12.262"
-    #         ),
-    #     },
-    # )
+    # ── Task 2: Submit Spark job to read the CSV files ────────────────────────
+    spark_read_task = SparkSubmitOperator(
+        task_id="spark_read_csv",
+        conn_id="spark_default",
+        application="/opt/airflow/dags/spark_jobs/minio_csv_reader.py",
+        name="minio_csv_reader",
+        verbose=True,
+        conf={
+            # MinIO S3A config
+            "spark.hadoop.fs.s3a.endpoint":          "http://minio:9000",
+            "spark.hadoop.fs.s3a.access.key":        "{{ var.value.get('minio_access_key', 'minioadmin') }}",
+            "spark.hadoop.fs.s3a.secret.key":        "{{ var.value.get('minio_secret_key', 'minioadmin123') }}",
+            "spark.hadoop.fs.s3a.path.style.access": "true",
+            "spark.hadoop.fs.s3a.impl":              "org.apache.hadoop.fs.s3a.S3AFileSystem",
+            "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+            # JARs required for S3A
+            "spark.jars.packages": (
+                "org.apache.hadoop:hadoop-aws:3.3.4,"
+                "com.amazonaws:aws-java-sdk-bundle:1.12.262"
+            ),
+        },
+    )
 
-    # list_files_task >> spark_read_task
-    list_files_task
+    list_files_task >> spark_read_task
