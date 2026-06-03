@@ -1,4 +1,6 @@
-# scripts/load_env.sh
+#!/bin/bash
+
+# bash scripts/load_env.sh
 
 set -a
 source infra/.env
