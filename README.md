@@ -220,6 +220,18 @@ bash airflow/connections/snowflake_connection.sh
 docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connections test snowflake_default
 
 docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connections test postgres_source
+
+# MiniIo Connection Test
+docker compose -f infra/docker-compose.yml exec airflow-webserver python -c "
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+hook = S3Hook(aws_conn_id='minio_default')
+buckets = hook.get_conn().list_buckets()['Buckets']
+print('Connection successful!')
+print('Buckets found:')
+for b in buckets:
+    print(f'  - {b[\"Name\"]}')
+"
 ```
 
 ### 3. Run dbt commands
