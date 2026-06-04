@@ -221,6 +221,19 @@ docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connec
 
 docker compose -f infra/docker-compose.yml exec airflow-webserver airflow connections test postgres_source
 
+# Spark Connection Test
+docker compose -f infra/docker-compose.yml exec airflow-webserver python -c "
+from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+
+hook = SparkSubmitHook(conn_id='spark_default', name='test_connection')
+conn = hook.get_connection('spark_default')
+print(f'conn_type : {conn.conn_type}')
+print(f'host      : {conn.host}')
+print(f'port      : {conn.port}')
+print(f'extra     : {conn.extra_dejson}')
+print('Spark connection config is valid!')
+"
+
 # MiniIo Connection Test
 docker compose -f infra/docker-compose.yml exec airflow-webserver python -c "
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
