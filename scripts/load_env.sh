@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# bash scripts/load_env.sh
-
 set -a
 source infra/.env
 set +a
+
+echo "TARGET_POSTGRES_USER=$TARGET_POSTGRES_USER"
